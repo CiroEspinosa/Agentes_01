@@ -1,0 +1,4 @@
+id: test_tool_1
+description: CMS to manage contracts built to provide full legal support for Customer Financial Program offerings
+keys: contract, legal support, offering
+swagger: http://127.0.0.1:8000/openapi.json

@@ -1,0 +1,4 @@
+id: file_reader_api
+description: Tool to read files.
+keys: files
+swagger: http://tool_file_reader:7121/openapi.json

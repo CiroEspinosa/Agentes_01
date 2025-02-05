@@ -1,0 +1,7 @@
+identifier: clothes_user_proxy
+raci_role: r
+agent_type: user_proxy
+agent_description: The user proxy of the clothes_provider
+rag_enabled: False
+goals: |
+  Interact with the stylist_planner to discuss the best outfit for the user given an event.

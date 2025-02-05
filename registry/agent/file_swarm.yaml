@@ -1,0 +1,8 @@
+identifier: file_swarm
+swarm_type: hybrid
+agents:
+  - file_user_proxy
+  - file_assistant
+  - file_reader
+  - file_generator
+  

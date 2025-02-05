@@ -1,0 +1,5 @@
+identifier: test_swarm_1
+swarm_type: hybrid
+agents:
+  - test_agent_1
+  - test_agent_2

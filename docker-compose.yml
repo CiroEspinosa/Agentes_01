@@ -1,0 +1,430 @@
+services:
+
+  ########################################################################
+  #
+  # MESSAGING
+  #
+  ########################################################################
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_HOST://kafka:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    depends_on:
+      - zookeeper
+
+
+ 
+
+  ########################################################################
+  #
+  # CACHE
+  #
+  ########################################################################
+
+  redis:
+    image: redis:7.0
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - ${DOCKER_VOLUME_DIRECTORY:-.}/volumes/redis:/data
+    command: [ "redis-server", "--appendonly", "yes" ]
+
+
+  ########################################################################
+  #
+  # REGISTRIES
+  #
+  ########################################################################
+
+  registry-agent:
+    build:
+      context: .
+      dockerfile: registry-agent.Dockerfile
+    image: registry-agent:3.0.3
+    ports:
+      - "7000:7000"
+
+
+  registry-tool:
+    build:
+      context: .
+      dockerfile: registry-tool.Dockerfile
+    image: registry-tool:3.0.3
+    ports:
+      - "7001:7001"
+
+
+ ########################################################################
+  #
+  # TOOLS
+  #
+  ########################################################################
+
+  tool_closet:
+    build:
+      context: .
+      dockerfile: tool_closet.Dockerfile
+    image: tool_closet:3.0.3
+    ports:
+      - "7120:7120"
+    depends_on:
+      - registry-tool
+    
+  tool_file_reader:
+    build:
+      context: .
+      dockerfile: tool_file_reader.Dockerfile
+    image: tool_file_reader:3.0.3
+    ports:
+      - "7121:7121"                    
+    depends_on:
+      - registry-tool     
+
+  tool_file_generator:
+    build:
+      context: .
+      dockerfile: tool_file_generator.Dockerfile
+    image: tool_file_generator:3.0.3
+    ports:
+      - "7122:7122"                    
+    depends_on:
+      - registry-tool               
+
+  ########################################################################
+  #
+  # AGENTS
+  #
+  ########################################################################
+
+  stylist_planner:
+    build:
+      context: .
+      dockerfile: agent.Dockerfile
+    image: stylist_planner:3.0.3
+    ports:
+      - "10000:10000"
+    command: [ "stylist_planner", "10000" ]
+    depends_on:
+      - redis
+      - kafka
+      - registry-agent
+      - registry-tool
+    environment:
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
+      AZURE_OPENAI_API_VERSION: ${AZURE_OPENAI_API_VERSION}
+      AZURE_OPENAI_BASE_URL: ${AZURE_OPENAI_BASE_URL}
+      GPT_EMBEDDING_ENGINE: ${GPT_EMBEDDING_ENGINE}
+      PINECONE_API_KEY: ${PINECONE_API_KEY}
+      PINECONE_REGION: ${PINECONE_REGION}
+      PINECONE_INDEX_NAME: ${PINECONE_INDEX_NAME}
+      PINECONE_NAMESPACE: ${PINECONE_NAMESPACE}
+
+  clothes_provider:
+    build:
+      context: .
+      dockerfile: agent.Dockerfile
+    image: clothes_provider:3.0.3
+    ports:
+      - "10001:10001"
+    command: [ "clothes_provider", "10001" ]
+    depends_on:
+      - redis
+      - kafka
+      - registry-agent
+      - registry-tool
+    environment:
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
+      AZURE_OPENAI_API_VERSION: ${AZURE_OPENAI_API_VERSION}
+      AZURE_OPENAI_BASE_URL: ${AZURE_OPENAI_BASE_URL}
+      GPT_EMBEDDING_ENGINE: ${GPT_EMBEDDING_ENGINE}
+      PINECONE_API_KEY: ${PINECONE_API_KEY}
+      PINECONE_REGION: ${PINECONE_REGION}
+      PINECONE_INDEX_NAME: ${PINECONE_INDEX_NAME}
+      PINECONE_NAMESPACE: ${PINECONE_NAMESPACE}
+
+  clothes_user_proxy:
+    build:
+      context: .
+      dockerfile: agent.Dockerfile
+    image: clothes_user_proxy:3.0.3
+    ports:
+      - "10002:10002"
+    command: [ "clothes_user_proxy", "10002" ]
+    depends_on:
+      - redis
+      - kafka
+      - registry-agent
+      - registry-tool
+    environment:
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
+      AZURE_OPENAI_API_VERSION: ${AZURE_OPENAI_API_VERSION}
+      AZURE_OPENAI_BASE_URL: ${AZURE_OPENAI_BASE_URL}
+      GPT_EMBEDDING_ENGINE: ${GPT_EMBEDDING_ENGINE}
+      PINECONE_API_KEY: ${PINECONE_API_KEY}
+      PINECONE_REGION: ${PINECONE_REGION}
+      PINECONE_INDEX_NAME: ${PINECONE_INDEX_NAME}
+      PINECONE_NAMESPACE: ${PINECONE_NAMESPACE}
+
+  circus_user_proxy:
+    build:
+      context: .
+      dockerfile: agent.Dockerfile
+    image: circus_user_proxy:3.0.3
+    ports:
+      - "10003:10003"
+    command: [ "circus_user_proxy", "10003" ]
+    depends_on:
+      - redis
+      - kafka
+      - registry-agent
+      - registry-tool
+    environment:
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
+      AZURE_OPENAI_API_VERSION: ${AZURE_OPENAI_API_VERSION}
+      AZURE_OPENAI_BASE_URL: ${AZURE_OPENAI_BASE_URL}
+      GPT_EMBEDDING_ENGINE: ${GPT_EMBEDDING_ENGINE}
+      PINECONE_API_KEY: ${PINECONE_API_KEY}
+      PINECONE_REGION: ${PINECONE_REGION}
+      PINECONE_INDEX_NAME: ${PINECONE_INDEX_NAME}
+      PINECONE_NAMESPACE: ${PINECONE_NAMESPACE}
+
+  joker_agent:
+    build:
+      context: .
+      dockerfile: agent.Dockerfile
+    image: joker_agent:3.0.3
+    ports:
+      - "10004:10004"
+    command: [ "joker_agent", "10004" ]
+    depends_on:
+      - redis
+      - kafka
+      - registry-agent
+      - registry-tool
+    environment:
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
+      AZURE_OPENAI_API_VERSION: ${AZURE_OPENAI_API_VERSION}
+      AZURE_OPENAI_BASE_URL: ${AZURE_OPENAI_BASE_URL}
+      GPT_EMBEDDING_ENGINE: ${GPT_EMBEDDING_ENGINE}
+      PINECONE_API_KEY: ${PINECONE_API_KEY}
+      PINECONE_REGION: ${PINECONE_REGION}
+      PINECONE_INDEX_NAME: ${PINECONE_INDEX_NAME}
+      PINECONE_NAMESPACE: ${PINECONE_NAMESPACE}
+
+  explainer_agent:
+    build:
+      context: .
+      dockerfile: agent.Dockerfile
+    image: explainer_agent:3.0.3
+    ports:
+      - "10005:10005"
+    command: [ "explainer_agent", "10005" ]
+    depends_on:
+      - redis
+      - kafka
+      - registry-agent
+      - registry-tool
+    environment:
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
+      AZURE_OPENAI_API_VERSION: ${AZURE_OPENAI_API_VERSION}
+      AZURE_OPENAI_BASE_URL: ${AZURE_OPENAI_BASE_URL}
+      GPT_EMBEDDING_ENGINE: ${GPT_EMBEDDING_ENGINE}
+      PINECONE_API_KEY: ${PINECONE_API_KEY}
+      PINECONE_REGION: ${PINECONE_REGION}
+      PINECONE_INDEX_NAME: ${PINECONE_INDEX_NAME}
+      PINECONE_NAMESPACE: ${PINECONE_NAMESPACE}
+  file_user_proxy:
+    build:
+      context: .
+      dockerfile: agent.Dockerfile
+    image: file_user_proxy:3.0.3
+    ports:
+      - "10006:10006"
+    command: [ "file_user_proxy", "10006" ]
+    depends_on:
+      - redis
+      - kafka
+      - registry-agent
+      - registry-tool
+    environment:
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
+      AZURE_OPENAI_API_VERSION: ${AZURE_OPENAI_API_VERSION}
+      AZURE_OPENAI_BASE_URL: ${AZURE_OPENAI_BASE_URL}
+      GPT_EMBEDDING_ENGINE: ${GPT_EMBEDDING_ENGINE}
+      PINECONE_API_KEY: ${PINECONE_API_KEY}
+      PINECONE_REGION: ${PINECONE_REGION}
+      PINECONE_INDEX_NAME: ${PINECONE_INDEX_NAME}
+
+  file_reader:
+    build:
+      context: .
+      dockerfile: agent.Dockerfile
+    image: file_reader:3.0.3
+    ports:
+      - "10007:10007"
+    command: [ "file_reader", "10007" ]
+    depends_on:
+      - redis
+      - kafka
+      - registry-agent
+      - registry-tool
+    environment:
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
+      AZURE_OPENAI_API_VERSION: ${AZURE_OPENAI_API_VERSION}
+      AZURE_OPENAI_BASE_URL: ${AZURE_OPENAI_BASE_URL}
+      GPT_EMBEDDING_ENGINE: ${GPT_EMBEDDING_ENGINE}
+      PINECONE_API_KEY: ${PINECONE_API_KEY}
+      PINECONE_REGION: ${PINECONE_REGION}
+      PINECONE_INDEX_NAME: ${PINECONE_INDEX_NAME}
+ 
+  file_assistant:
+    build:
+      context: .
+      dockerfile: agent.Dockerfile
+    image: file_assistant:3.0.3
+    ports:
+      - "10008:10008"
+    command: [ "file_assistant", "10008" ]
+    depends_on:
+      - redis
+      - kafka
+      - registry-agent
+      - registry-tool
+    environment:
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
+      AZURE_OPENAI_API_VERSION: ${AZURE_OPENAI_API_VERSION}
+      AZURE_OPENAI_BASE_URL: ${AZURE_OPENAI_BASE_URL}
+      GPT_EMBEDDING_ENGINE: ${GPT_EMBEDDING_ENGINE}
+      PINECONE_API_KEY: ${PINECONE_API_KEY}
+      PINECONE_REGION: ${PINECONE_REGION}
+      PINECONE_INDEX_NAME: ${PINECONE_INDEX_NAME}
+
+  file_generator:
+    build:
+      context: .
+      dockerfile: agent.Dockerfile
+    image: file_generator:3.0.3
+    ports:
+      - "10009:10009"
+    command: [ "file_generator", "10009" ]
+    depends_on:
+      - redis
+      - kafka
+      - registry-agent
+      - registry-tool
+    environment:
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
+      AZURE_OPENAI_API_VERSION: ${AZURE_OPENAI_API_VERSION}
+      AZURE_OPENAI_BASE_URL: ${AZURE_OPENAI_BASE_URL}
+      GPT_EMBEDDING_ENGINE: ${GPT_EMBEDDING_ENGINE}
+      PINECONE_API_KEY: ${PINECONE_API_KEY}
+      PINECONE_REGION: ${PINECONE_REGION}
+      PINECONE_INDEX_NAME: ${PINECONE_INDEX_NAME}
+
+  ########################################################################
+  #
+  # SWARMS
+  #
+  ########################################################################
+
+  stylist_swarm:
+    build:
+      context: .
+      dockerfile: swarm.Dockerfile
+    image: stylist_swarm:3.0.3
+    ports:
+      - "10100:10100"
+    command: [ "stylist_swarm", "10100" ]
+    depends_on:
+      - redis
+      - kafka
+      - registry-agent
+    environment:
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
+      AZURE_OPENAI_API_VERSION: ${AZURE_OPENAI_API_VERSION}
+      AZURE_OPENAI_BASE_URL: ${AZURE_OPENAI_BASE_URL}
+      GPT_EMBEDDING_ENGINE: ${GPT_EMBEDDING_ENGINE}
+      PINECONE_API_KEY: ${PINECONE_API_KEY}
+      PINECONE_REGION: ${PINECONE_REGION}
+      PINECONE_INDEX_NAME: ${PINECONE_INDEX_NAME}
+
+  circus_swarm:
+    build:
+      context: .
+      dockerfile: swarm.Dockerfile
+    image: circus_swarm:3.0.3
+    ports:
+      - "10101:10101"
+    command: [ "circus_swarm", "10101" ]
+    depends_on:
+      - redis
+      - kafka
+      - registry-agent
+    environment:
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
+      AZURE_OPENAI_API_VERSION: ${AZURE_OPENAI_API_VERSION}
+      AZURE_OPENAI_BASE_URL: ${AZURE_OPENAI_BASE_URL}
+      GPT_EMBEDDING_ENGINE: ${GPT_EMBEDDING_ENGINE}
+      PINECONE_API_KEY: ${PINECONE_API_KEY}
+      PINECONE_REGION: ${PINECONE_REGION}
+      PINECONE_INDEX_NAME: ${PINECONE_INDEX_NAME}
+  
+
+  file_swarm:
+    build:
+      context: .
+      dockerfile: swarm.Dockerfile
+    image: file_swarm:3.0.3
+    ports:
+      - "10102:10102"
+    command: [ "file_swarm", "10102" ]
+    depends_on:
+      - redis
+      - kafka
+      - registry-agent
+    environment:
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
+      AZURE_OPENAI_API_VERSION: ${AZURE_OPENAI_API_VERSION}
+      AZURE_OPENAI_BASE_URL: ${AZURE_OPENAI_BASE_URL}
+      GPT_EMBEDDING_ENGINE: ${GPT_EMBEDDING_ENGINE}
+      PINECONE_API_KEY: ${PINECONE_API_KEY}
+      PINECONE_REGION: ${PINECONE_REGION}
+      PINECONE_INDEX_NAME: ${PINECONE_INDEX_NAME}
+
+ ########################################################################
+  #
+  # STREAMLIT
+  #
+  ########################################################################
+
+  streamlit_frontend:
+    build:
+      context: ./frontend
+      dockerfile: streamlit.Dockerfile
+    image: streamlit_frontend:latest
+    ports:
+      - "8501:8501"
+    depends_on:
+      - clothes_user_proxy
+    environment:
+      - API_BASE_URL=http://clothes_user_proxy:10002

@@ -1,0 +1,4 @@
+id: test_tool_2
+description: Market data provider, including financial statements and stock related information
+keys: market data, financial statements, stock
+swagger: http://127.0.0.1:8000/openapi.json

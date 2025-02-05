@@ -1,0 +1,4 @@
+id: closet_api
+description: tool to provide the clothes in the closet
+keys: sustainability
+swagger: http://tool_closet:7120/openapi.json

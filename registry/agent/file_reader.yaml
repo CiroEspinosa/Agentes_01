@@ -1,0 +1,11 @@
+identifier: file_reader
+raci_role: c
+agent_type: assistant
+model: gpt-4o
+tools:
+  - file_reader_api
+rag_enabled: False
+agent_description: Responsible listing and reading the stored files.
+goals:
+  Use the provided tool to retrieve the list of stored files or their content, then send the information to file_assistant.
+  If the list is empty or an error occurs, inform file_assistant immediately.

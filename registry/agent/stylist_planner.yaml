@@ -1,0 +1,20 @@
+identifier: stylist_planner
+raci_role: a
+agent_type: assistant
+# model: o1-mini-2024-09-12
+model: gpt-4o
+rag_enabled: False
+agent_description: Responsable of taking the decision of the best outfit for a specific event.
+goals: |
+  You are tasked with creating a plan. The plan must consist of three sequential steps:
+  
+  Phase I: Get available clothes
+  - ask clothes_provider for the available clothes 
+
+  Phase II: Outfit Selection
+  - Select the outfit for the event, given the available clothes by clothes_provider
+
+  Phase III: Outfit Explanation
+  - Explain the outfit selection to the user
+  
+  Explain the plan first step by step. Clearly indicate which step is performed by whom.

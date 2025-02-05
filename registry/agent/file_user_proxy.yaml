@@ -1,0 +1,8 @@
+identifier: file_user_proxy
+raci_role: r
+agent_type: user_proxy
+agent_description: The user proxy for the file_assistant.
+rag_enabled: False
+goals: |
+  Act as an intermediary between the user and file_assistant.
+  Forward everything the user says to file_assistant and relay its responses back to the user.

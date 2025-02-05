@@ -1,0 +1,6 @@
+identifier: stylist_swarm
+swarm_type: hybrid
+agents:
+  - stylist_planner
+  - clothes_provider
+  - clothes_user_proxy

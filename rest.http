@@ -1,0 +1,113 @@
+### Get all agents
+
+GET http://localhost:7000/agents
+
+### Get an agent by identifier
+
+GET http://localhost:7000/agents/clothes_provider
+
+
+### Get all tools
+
+GET http://localhost:7001/tools
+
+### Get a tool by identifier
+
+GET http://localhost:7001/tools/file_generator_api
+
+### Get all tools
+
+GET http://localhost:7122/openapi.json
+
+### Get all tools
+
+GET http://localhost:7121/openapi.json
+
+### Get all swarms
+
+GET http://localhost:7000/swarms
+
+### Get a swarm by identifier
+
+GET http://registry-agent:7000/swarms/stylist_swarm
+
+
+### Agent health check
+
+GET http://localhost:10001/health
+
+
+### Send single message to an assistant agent (Ej. clothes_provider - port 10001)
+
+POST http://localhost:10001/chat
+content-type: application/json
+
+{
+    "role": "user",
+    "content": "What clothes are available?",
+    "name": "username"
+}
+
+
+### Initiate a new conversation with a user-proxy agent (clothes_user_proxy - port 10002)
+
+POST http://localhost:10002/conversation
+content-type: application/json
+
+{
+    "swarm": "stylist_swarm",
+    "user": "username",
+    "request": "What clothes should I wear to a party?"
+}
+
+### Initiate a new conversation with a user-proxy agent (clothes_user_proxy - port 10002)
+
+POST http://localhost:10002/conversation
+content-type: application/json
+
+{
+    "swarm": "stylist_swarm",
+    "user": "username",
+    "request": "Como sabe clothes_provider que ropas hay en el armario?"
+}
+
+### Check the conversation status
+
+GET http://localhost:10002/conversation/username/username_7c967158-7fd6-4c40-bab6-65f5ce4c27ea
+
+
+### Send new reply to a conversation
+
+POST http://localhost:10002/reply
+content-type: application/json
+
+{
+    "user_id": "username",
+    "conversation_id": "username_ae1b62e3-24a0-4d0c-935c-13a9e1447840",
+    "content": "Could you please suggest me something less formal?"
+}
+
+
+
+### Send single message to an assistant agent (Ej. clothes_provider - port 10001)
+
+POST http://localhost:10007/chat
+content-type: application/json
+
+{
+    "role": "user",
+    "content": "listame los archivos",
+    "name": "username"
+}
+
+### Initiate a new conversation with a user-proxy agent (clothes_user_proxy - port 10002)
+
+POST http://localhost:10006/conversation
+content-type: application/json
+
+{
+    "swarm": "file_swarm",
+    "user": "username",
+    "request": "lista"
+}
+

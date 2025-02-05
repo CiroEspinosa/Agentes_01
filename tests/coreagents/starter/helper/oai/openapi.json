@@ -1,0 +1,146 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "FastAPI",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/credit/CDS/5Y/{customer}": {
+      "get": {
+        "summary": "Get Market Data",
+        "description": "Endpoint to provide market data for a specific customer",
+        "operationId": "get_market_data_credit_CDS_5Y__customer__get",
+        "parameters": [
+          {
+            "name": "customer",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Customer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Cds": {
+        "properties": {
+          "tenure": {
+            "type": "string",
+            "title": "Tenure"
+          },
+          "value": {
+            "type": "integer",
+            "title": "Value"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit"
+          },
+          "unitDescription": {
+            "type": "string",
+            "title": "Unitdescription"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tenure",
+          "value",
+          "unit",
+          "unitDescription"
+        ],
+        "title": "Cds",
+        "description": "Class representing the CDS value of a BBVA corporate customer"
+      },
+      "Data": {
+        "properties": {
+          "companyName": {
+            "type": "string",
+            "title": "Companyname"
+          },
+          "cds": {
+            "$ref": "#/components/schemas/Cds"
+          }
+        },
+        "type": "object",
+        "required": [
+          "companyName",
+          "cds"
+        ],
+        "title": "Data",
+        "description": "Class to encapsulate data returned by Bloomberg BLAPI"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

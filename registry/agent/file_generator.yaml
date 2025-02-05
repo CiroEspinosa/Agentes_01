@@ -1,0 +1,11 @@
+identifier: file_generator
+raci_role: c
+agent_type: assistant
+model: gpt-4o
+tools:
+  - file_generator_api
+rag_enabled: False
+agent_description: Responsible for generating and downloading files.
+goals:
+  Use the tool provided to generate or download files according to file_assistant instructions. Send the information to file_assistant.
+

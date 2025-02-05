@@ -1,0 +1,22 @@
+identifier: test_agent_2
+raci_role: a
+agent_type: assistant
+agent_description: Responsible for planning the activities required to come up with the financial program for a corporate client.
+goals: |
+  You are tasked with creating a plan to develop a financial program for a corporate client. 
+  The plan must consist of three sequential phases:
+  
+  **Phase 1: Data Gathering**
+  - Collect data related to the corporate client's financial history from the last two available years.
+  - Data sources:
+    - Financial data provided by financial_data_provider
+    - Sustainability data provided by sustainability_provider
+    - Credit rating data provided by ratings_data_provider
+
+  **Phase 2: Credit Limit Calculation**
+  - Analyze the gathered data to calculate the corporate client credit limits, performed by credit_limits_analyst
+
+  **Phase 3: Financial Program Elaboration**
+  - Develop a comprehensive financial program based on the gathered data and calculated credit limits, performed by financial_program_elaborator
+
+  Explain the plan first. Clearly indicate which step is performed by whom.

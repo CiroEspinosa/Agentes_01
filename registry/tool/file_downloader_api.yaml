@@ -1,0 +1,4 @@
+id: file_downloader_api
+description: Tool to download files.
+keys: files
+swagger: http://tool_file_downloader:7122/openapi.json

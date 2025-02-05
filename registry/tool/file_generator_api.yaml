@@ -1,0 +1,4 @@
+id: file_generator_api
+description: Tool to generate files.
+keys: files
+swagger: http://tool_file_generator:7122/openapi.json
