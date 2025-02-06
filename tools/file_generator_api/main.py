@@ -6,7 +6,7 @@ import pandas as pd
 import os
 import uuid
 from typing import List, Dict, Optional, Union
-from xhtml2pdf import pisa
+#from xhtml2pdf import pisa
 from io import BytesIO
 
 app = FastAPI()

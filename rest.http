@@ -29,7 +29,7 @@ GET http://localhost:7000/swarms
 
 ### Get a swarm by identifier
 
-GET http://registry-agent:7000/swarms/stylist_swarm
+GET http://localhost:7000/swarms/file_swarm
 
 
 ### Agent health check
@@ -110,4 +110,7 @@ content-type: application/json
     "user": "username",
     "request": "lista"
 }
+### Check the conversation status
+
+GET http://localhost:10006/conversation/username/username_a27bf910-3382-4975-a4d7-976090eeea4d
 

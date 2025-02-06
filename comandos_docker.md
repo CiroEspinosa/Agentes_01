@@ -46,3 +46,6 @@ curl -X POST http://localhost:7121/files/read/ \
 -H "Content-Type: multipart/form-data" \
 -F "file=@/home/ciro/Project/DIPLOMA FORMACIÓN PRESENCIAL_27-01-2025_Tecnilógica.pptx"
 # Subir un archivo para su lectura
+
+
+

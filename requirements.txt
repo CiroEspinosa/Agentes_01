@@ -21,7 +21,6 @@ streamlit
 PyPDF2
 python-docx
 python-pptx
-fpdf
 pandas
 openpyxl
 xhtml2pdf
