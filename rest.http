@@ -112,5 +112,4 @@ content-type: application/json
 }
 ### Check the conversation status
 
-GET http://localhost:10006/conversation/username/username_a27bf910-3382-4975-a4d7-976090eeea4d
-
+GET http://localhost:10006/conversation/username/username_a8a9c96f-a3ce-4ff7-9e56-baea8bab2dee

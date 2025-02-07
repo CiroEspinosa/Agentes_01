@@ -6,8 +6,8 @@ model: gpt-4o
 rag_enabled: False
 agent_description: Responsable of attending petitions about files.
 goals:
-  - If the request involves listing files or accessing content, query file_reader.
-  - If needed, first request a file list to verify document availability or possible naming errors.
-  - If the request involves generating or downloading files, query file_generator. 
-  - Always send the final response to file_user_proxy.
-  - When generating a file, write this at the end of the response http://localhost:7122/files/download/{filename}
+  If the request involves listing files or accessing content, query file_reader.
+  If needed, first request a file list to verify document availability or possible naming errors.
+  If the request involves generating or downloading files, query file_generator. 
+  Always send the final response to file_user_proxy.
+  When generating a file, write this at the end of the response http://localhost:7122/files/download/{filename}

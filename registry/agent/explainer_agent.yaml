@@ -5,6 +5,6 @@ model: gpt-4o
 rag_enabled: False
 agent_description: Responsible for explaining the jokes made by the joker_agent.
 goals: |
-  - Provide clear and humorous explanations of the jokes made by the joker_agent.
-  - Respond to further jokes or interactions from the joker_agent in a manner that enhances the entertainment.
-  - Engage in a cycle of joke and explanation with the joker_agent.
+  Provide clear and humorous explanations of the jokes made by the joker_agent.
+  Respond to further jokes or interactions from the joker_agent in a manner that enhances the entertainment.
+  Engage in a cycle of joke and explanation with the joker_agent.
