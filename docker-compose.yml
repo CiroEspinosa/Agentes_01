@@ -79,16 +79,6 @@ services:
   # TOOLS
   #
   ########################################################################
-
-  tool_closet:
-    build:
-      context: .
-      dockerfile: tool_closet.Dockerfile
-    image: tool_closet:3.0.3
-    ports:
-      - "7120:7120"
-    depends_on:
-      - registry-tool
     
   tool_file_reader:
     build:
@@ -116,143 +106,6 @@ services:
   #
   ########################################################################
 
-  stylist_planner:
-    build:
-      context: .
-      dockerfile: agent.Dockerfile
-    image: stylist_planner:3.0.3
-    ports:
-      - "10000:10000"
-    command: [ "stylist_planner", "10000" ]
-    depends_on:
-      - redis
-      - kafka
-      - registry-agent
-      - registry-tool
-    environment:
-      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
-      AZURE_OPENAI_API_VERSION: ${AZURE_OPENAI_API_VERSION}
-      AZURE_OPENAI_BASE_URL: ${AZURE_OPENAI_BASE_URL}
-      GPT_EMBEDDING_ENGINE: ${GPT_EMBEDDING_ENGINE}
-      PINECONE_API_KEY: ${PINECONE_API_KEY}
-      PINECONE_REGION: ${PINECONE_REGION}
-      PINECONE_INDEX_NAME: ${PINECONE_INDEX_NAME}
-      PINECONE_NAMESPACE: ${PINECONE_NAMESPACE}
-
-  clothes_provider:
-    build:
-      context: .
-      dockerfile: agent.Dockerfile
-    image: clothes_provider:3.0.3
-    ports:
-      - "10001:10001"
-    command: [ "clothes_provider", "10001" ]
-    depends_on:
-      - redis
-      - kafka
-      - registry-agent
-      - registry-tool
-    environment:
-      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
-      AZURE_OPENAI_API_VERSION: ${AZURE_OPENAI_API_VERSION}
-      AZURE_OPENAI_BASE_URL: ${AZURE_OPENAI_BASE_URL}
-      GPT_EMBEDDING_ENGINE: ${GPT_EMBEDDING_ENGINE}
-      PINECONE_API_KEY: ${PINECONE_API_KEY}
-      PINECONE_REGION: ${PINECONE_REGION}
-      PINECONE_INDEX_NAME: ${PINECONE_INDEX_NAME}
-      PINECONE_NAMESPACE: ${PINECONE_NAMESPACE}
-
-  clothes_user_proxy:
-    build:
-      context: .
-      dockerfile: agent.Dockerfile
-    image: clothes_user_proxy:3.0.3
-    ports:
-      - "10002:10002"
-    command: [ "clothes_user_proxy", "10002" ]
-    depends_on:
-      - redis
-      - kafka
-      - registry-agent
-      - registry-tool
-    environment:
-      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
-      AZURE_OPENAI_API_VERSION: ${AZURE_OPENAI_API_VERSION}
-      AZURE_OPENAI_BASE_URL: ${AZURE_OPENAI_BASE_URL}
-      GPT_EMBEDDING_ENGINE: ${GPT_EMBEDDING_ENGINE}
-      PINECONE_API_KEY: ${PINECONE_API_KEY}
-      PINECONE_REGION: ${PINECONE_REGION}
-      PINECONE_INDEX_NAME: ${PINECONE_INDEX_NAME}
-      PINECONE_NAMESPACE: ${PINECONE_NAMESPACE}
-
-  circus_user_proxy:
-    build:
-      context: .
-      dockerfile: agent.Dockerfile
-    image: circus_user_proxy:3.0.3
-    ports:
-      - "10003:10003"
-    command: [ "circus_user_proxy", "10003" ]
-    depends_on:
-      - redis
-      - kafka
-      - registry-agent
-      - registry-tool
-    environment:
-      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
-      AZURE_OPENAI_API_VERSION: ${AZURE_OPENAI_API_VERSION}
-      AZURE_OPENAI_BASE_URL: ${AZURE_OPENAI_BASE_URL}
-      GPT_EMBEDDING_ENGINE: ${GPT_EMBEDDING_ENGINE}
-      PINECONE_API_KEY: ${PINECONE_API_KEY}
-      PINECONE_REGION: ${PINECONE_REGION}
-      PINECONE_INDEX_NAME: ${PINECONE_INDEX_NAME}
-      PINECONE_NAMESPACE: ${PINECONE_NAMESPACE}
-
-  joker_agent:
-    build:
-      context: .
-      dockerfile: agent.Dockerfile
-    image: joker_agent:3.0.3
-    ports:
-      - "10004:10004"
-    command: [ "joker_agent", "10004" ]
-    depends_on:
-      - redis
-      - kafka
-      - registry-agent
-      - registry-tool
-    environment:
-      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
-      AZURE_OPENAI_API_VERSION: ${AZURE_OPENAI_API_VERSION}
-      AZURE_OPENAI_BASE_URL: ${AZURE_OPENAI_BASE_URL}
-      GPT_EMBEDDING_ENGINE: ${GPT_EMBEDDING_ENGINE}
-      PINECONE_API_KEY: ${PINECONE_API_KEY}
-      PINECONE_REGION: ${PINECONE_REGION}
-      PINECONE_INDEX_NAME: ${PINECONE_INDEX_NAME}
-      PINECONE_NAMESPACE: ${PINECONE_NAMESPACE}
-
-  explainer_agent:
-    build:
-      context: .
-      dockerfile: agent.Dockerfile
-    image: explainer_agent:3.0.3
-    ports:
-      - "10005:10005"
-    command: [ "explainer_agent", "10005" ]
-    depends_on:
-      - redis
-      - kafka
-      - registry-agent
-      - registry-tool
-    environment:
-      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
-      AZURE_OPENAI_API_VERSION: ${AZURE_OPENAI_API_VERSION}
-      AZURE_OPENAI_BASE_URL: ${AZURE_OPENAI_BASE_URL}
-      GPT_EMBEDDING_ENGINE: ${GPT_EMBEDDING_ENGINE}
-      PINECONE_API_KEY: ${PINECONE_API_KEY}
-      PINECONE_REGION: ${PINECONE_REGION}
-      PINECONE_INDEX_NAME: ${PINECONE_INDEX_NAME}
-      PINECONE_NAMESPACE: ${PINECONE_NAMESPACE}
   file_user_proxy:
     build:
       context: .
@@ -346,50 +199,7 @@ services:
   # SWARMS
   #
   ########################################################################
-
-  stylist_swarm:
-    build:
-      context: .
-      dockerfile: swarm.Dockerfile
-    image: stylist_swarm:3.0.3
-    ports:
-      - "10100:10100"
-    command: [ "stylist_swarm", "10100" ]
-    depends_on:
-      - redis
-      - kafka
-      - registry-agent
-    environment:
-      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
-      AZURE_OPENAI_API_VERSION: ${AZURE_OPENAI_API_VERSION}
-      AZURE_OPENAI_BASE_URL: ${AZURE_OPENAI_BASE_URL}
-      GPT_EMBEDDING_ENGINE: ${GPT_EMBEDDING_ENGINE}
-      PINECONE_API_KEY: ${PINECONE_API_KEY}
-      PINECONE_REGION: ${PINECONE_REGION}
-      PINECONE_INDEX_NAME: ${PINECONE_INDEX_NAME}
-
-  circus_swarm:
-    build:
-      context: .
-      dockerfile: swarm.Dockerfile
-    image: circus_swarm:3.0.3
-    ports:
-      - "10101:10101"
-    command: [ "circus_swarm", "10101" ]
-    depends_on:
-      - redis
-      - kafka
-      - registry-agent
-    environment:
-      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
-      AZURE_OPENAI_API_VERSION: ${AZURE_OPENAI_API_VERSION}
-      AZURE_OPENAI_BASE_URL: ${AZURE_OPENAI_BASE_URL}
-      GPT_EMBEDDING_ENGINE: ${GPT_EMBEDDING_ENGINE}
-      PINECONE_API_KEY: ${PINECONE_API_KEY}
-      PINECONE_REGION: ${PINECONE_REGION}
-      PINECONE_INDEX_NAME: ${PINECONE_INDEX_NAME}
   
-
   file_swarm:
     build:
       context: .
@@ -425,6 +235,6 @@ services:
     ports:
       - "8501:8501"
     depends_on:
-      - clothes_user_proxy
+      - file_user_proxy
     environment:
       - API_BASE_URL=http://clothes_user_proxy:10002

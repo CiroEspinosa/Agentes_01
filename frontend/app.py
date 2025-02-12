@@ -4,8 +4,9 @@ import time
 import os
 
 # URL del endpoint donde se enviará el archivo
-UPLOAD_URL = "http://tool_file_reader:7121/files/read/"
-DOWNLOAD_URL_BASE = "http://localhost:7122/files/download/"
+UPLOAD_URL = "http://tool_file_reader:7121/files/upload/"
+LIST_URL = "http://tool_file_reader:7121/files/list"
+LIST_GEN_URL = "http://tool_file_generator:7122/files/list"
 OUTPUT_FOLDER = "generated_files"
 
 data = {
@@ -58,7 +59,8 @@ st.set_page_config(layout="wide")
 with st.sidebar:
     st.title("Opciones")
     st.subheader("Subir archivo")
-    uploaded_file = st.file_uploader("Elige un archivo", type=["pptx", "pdf", "docx", "txt"])
+    uploaded_file = st.file_uploader("Elige un archivo")
+
     
     if uploaded_file is not None:
         st.write(f"Archivo seleccionado: {uploaded_file.name}")
@@ -73,6 +75,45 @@ with st.sidebar:
                     st.error(f"Error al subir el archivo: {response.status_code} - {response.text}")
             except requests.exceptions.RequestException as e:
                 st.error(f"Error de conexión: {e}")
+    
+    st.subheader("Archivos generados")          
+
+    if st.button("Actualizar lista de archivos generados"):
+        try:
+            response = requests.get(LIST_GEN_URL)
+            if response.status_code == 200:
+                file_list = response.json().get("files", [])  # Extraer la lista de archivos
+                if file_list:
+                    st.write("Archivos disponibles:")
+                    for file in file_list:
+                        filename = file.get("filename", "Desconocido")
+                        download_url = file.get("download_url", "#")
+                        # Mostrar el nombre del archivo con un enlace de descarga
+                        st.markdown(f"- [{filename}]({download_url})")
+                else:
+                    st.info("No hay archivos disponibles.")
+            else:
+                st.error(f"Error al obtener la lista de archivos: {response.status_code} - {response.text}")
+        except requests.exceptions.RequestException as e:
+            st.error(f"Error de conexión: {e}")
+
+    st.subheader("Archivos subidos")          
+
+    if st.button("Actualizar lista de archivos"):
+        try:
+            response = requests.get(LIST_URL)
+            if response.status_code == 200:
+                file_list = response.json().get("files", [])  # Extraer la lista de archivos
+                if file_list:
+                    st.write("Archivos disponibles:")
+                    for file in file_list:
+                        st.write(f"- {file}")
+                else:
+                    st.info("No hay archivos disponibles.")
+            else:
+                st.error(f"Error al obtener la lista de archivos: {response.status_code} - {response.text}")
+        except requests.exceptions.RequestException as e:
+            st.error(f"Error de conexión: {e}")
 
     st.subheader("Información de Herramientas, Agentes y Swarms")
 

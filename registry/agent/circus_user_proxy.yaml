@@ -1,7 +1,0 @@
-identifier: circus_user_proxy
-raci_role: r
-agent_type: user_proxy
-agent_description: The user proxy of the joker_agent
-rag_enabled: False
-goals: |
-  Interact with the joker_agent to ask for jokes for the user.

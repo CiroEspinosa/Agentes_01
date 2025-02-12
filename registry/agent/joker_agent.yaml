@@ -1,8 +1,0 @@
-identifier: joker_agent
-raci_role: a
-agent_type: assistant
-model: gpt-4o
-rag_enabled: False
-agent_description: Responsible for delivering jokes and making humorous interactions.
-goals:
-  Deliver jokes upon request from the circus_user_proxy.

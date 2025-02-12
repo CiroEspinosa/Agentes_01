@@ -13,7 +13,7 @@ GET http://localhost:7001/tools
 
 ### Get a tool by identifier
 
-GET http://localhost:7001/tools/file_generator_api
+GET http://localhost:7001/tools/file_reader_api
 
 ### Get all tools
 
@@ -34,30 +34,30 @@ GET http://localhost:7000/swarms/file_swarm
 
 ### Agent health check
 
-GET http://localhost:10001/health
+GET http://localhost:10008/health
 
 
 ### Send single message to an assistant agent (Ej. clothes_provider - port 10001)
 
-POST http://localhost:10001/chat
+POST http://localhost:10007/chat
 content-type: application/json
 
 {
     "role": "user",
-    "content": "What clothes are available?",
+    "content": "list files",
     "name": "username"
 }
 
 
 ### Initiate a new conversation with a user-proxy agent (clothes_user_proxy - port 10002)
 
-POST http://localhost:10002/conversation
+POST http://localhost:10006/conversation
 content-type: application/json
 
 {
-    "swarm": "stylist_swarm",
+    "swarm": "file_swarm",
     "user": "username",
-    "request": "What clothes should I wear to a party?"
+    "request": "Hola"
 }
 
 ### Initiate a new conversation with a user-proxy agent (clothes_user_proxy - port 10002)
@@ -73,18 +73,17 @@ content-type: application/json
 
 ### Check the conversation status
 
-GET http://localhost:10002/conversation/username/username_7c967158-7fd6-4c40-bab6-65f5ce4c27ea
-
+GET http://localhost:10006/conversation/username/username_71f8167f-be27-45b7-ae38-cbc804c47c3d
 
 ### Send new reply to a conversation
 
-POST http://localhost:10002/reply
+POST http://localhost:10006/reply
 content-type: application/json
 
 {
     "user_id": "username",
-    "conversation_id": "username_ae1b62e3-24a0-4d0c-935c-13a9e1447840",
-    "content": "Could you please suggest me something less formal?"
+    "conversation_id": "username_71f8167f-be27-45b7-ae38-cbc804c47c3d",
+    "content": "pa ti mi cola"
 }
 
 

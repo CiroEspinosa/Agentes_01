@@ -21,6 +21,7 @@ sudo systemctl restart docker  # Reiniciar el servicio de Docker
 docker compose down         # Apagar los contenedores y redes
 docker compose build        # Construir las imágenes de nuevo
 docker compose up -d        # Levantar los contenedores en segundo plano
+docker compose restart file_user_proxy file_generator file_reader file_assistant tool_file_reader tool_file_generator # Reiniciar contenedores
 ```
 
 ## 📡 4. Consultar APIs con curl
@@ -47,5 +48,18 @@ curl -X POST http://localhost:7121/files/read/ \
 -F "file=@/home/ciro/Project/DIPLOMA FORMACIÓN PRESENCIAL_27-01-2025_Tecnilógica.pptx"
 # Subir un archivo para su lectura
 
+ # Obtener el contenido de un archivo ya subido (/files/content/{filename})
 
+curl -X GET "http://localhost:7121/files/content/nombre_del_archivo.txt"
 
+curl -X POST "http://localhost:7121/files/upload/" \
+     -H "Content-Type: multipart/form-data" \
+     -F "file=@ruta/del/archivo.txt"
+
+curl -X GET "http://localhost:7121/files/list"
+
+curl -X 'POST' 'http://127.0.0.1:7121/files/upload/' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: multipart/form-data' \
+  -F 'file=@/home/ciro/Project/TARJETA RESTAURANTE.pdf'
+"\\wsl.localhost\Ubuntu\home\ciro\Project\TARJETA RESTAURANTE.pdf"

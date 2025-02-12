@@ -1,133 +1,84 @@
 import uvicorn
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
-from fastapi.responses import JSONResponse
 from typing import Optional, Dict
 from pathlib import Path
 from pydantic import BaseModel
 from PyPDF2 import PdfReader
 from docx import Document
 from pptx import Presentation
+from odf.opendocument import load
+from ebooklib import epub
+from bs4 import BeautifulSoup
+import pandas as pd
+import pdfplumber
+from pathlib import Path
+
 
 app = FastAPI()
 
-# Temporary storage for processed files
 processed_files: Dict[str, str] = {}
+structured_files: Dict[str, str] = {}
 
-# Pydantic Models
 class FileContentResponse(BaseModel):
+    """Response model for extracted file text."""
     filename: str
     file_content: str
     additional_text: Optional[str] = None
 
-class FileProcessingResponse(BaseModel):
-    message: str
-
-# Helper functions
-
-def read_pptx(file_path: Path) -> str:
-    """Reads the content of a PPTX file."""
-    presentation = Presentation(file_path)
-    text = []
-    for slide in presentation.slides:
-        for shape in slide.shapes:
-            if hasattr(shape, "text"):
-                text.append(shape.text)
-    return "\n".join(text)
-
-def read_txt(file_path: Path) -> str:
-    """Reads the content of a TXT file."""
-    with file_path.open("r", encoding="utf-8") as f:
-        return f.read()
-
-def read_pdf(file_path: Path) -> str:
-    """Reads the text of a PDF file."""
-    pdf_text = ""
-    reader = PdfReader(file_path)
-    for page in reader.pages:
-        pdf_text += page.extract_text()
-    return pdf_text
-
-def read_docx(file_path: Path) -> str:
-    """Reads the text of a DOCX file."""
-    doc = Document(file_path)
-    return "\n".join([p.text for p in doc.paragraphs])
-
-# Endpoints
-@app.post(
-    "/files/read/",
-    response_model=FileContentResponse,
-    summary="Read a file",
-    description="Reads a file uploaded to the server and returns its content.",
-)
-async def read_file(file: UploadFile = File(...), additional_text: Optional[str] = Form(None)):
-    """
-    Endpoint to process a file uploaded to the server.
-    """
+def read_file_content(file_path: Path) -> str:
+    """Extracts the plain text content from a file."""
+    file_extension = file_path.suffix.lower()
     try:
-        # Temporarily save the file
-        temp_path = Path(f"/tmp/{file.filename}")
-        with temp_path.open("wb") as f:
-            f.write(await file.read())
-        
-        # Process the file based on its type
-        file_extension = temp_path.suffix.lower()
         if file_extension == ".txt":
-            file_content = read_txt(temp_path)
+            return file_path.read_text(encoding="utf-8")
         elif file_extension == ".pdf":
-            file_content = read_pdf(temp_path)
+            with pdfplumber.open(file_path) as pdf:
+                return "\n".join(page.extract_text() for page in pdf.pages if page.extract_text())
         elif file_extension == ".docx":
-            file_content = read_docx(temp_path)
+            return "\n".join(p.text for p in Document(file_path).paragraphs)
         elif file_extension == ".pptx":
-            file_content = read_pptx(temp_path)
-        else:
-            raise HTTPException(status_code=400, detail="Unsupported file format.")
-        
-        # Store content in memory
-        processed_files[file.filename] = file_content
-        
-        # Delete temporary file
-        temp_path.unlink()
+            return "\n".join(shape.text for slide in Presentation(file_path).slides for shape in slide.shapes if hasattr(shape, "text"))
+        elif file_extension == ".html":
+            with open(file_path, "r", encoding="utf-8") as f:
+                return BeautifulSoup(f, "html.parser").get_text()
+        elif file_extension in [".xls", ".xlsx"]:
+            excel_data = pd.read_excel(file_path, sheet_name=None)
+            return "\n\n".join(f"Sheet: {sheet_name}\n{df.to_string(index=False)}" for sheet_name, df in excel_data.items())
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error processing file: {str(e)}")
+    raise HTTPException(status_code=400, detail="Unsupported file format.")
 
-        return FileContentResponse(
-            filename=file.filename,
-            file_content=file_content,
-            additional_text=additional_text,
-        )
+@app.post("/files/upload/", 
+          response_model=FileContentResponse, 
+          summary="Upload and extract file text", 
+          description="Uploads a file and extracts its plain text content.")
+async def upload_file(file: UploadFile = File(...), additional_text: Optional[str] = Form(None)):
+    temp_path = Path(f"/tmp/{file.filename}")
+    try:
+        temp_path.write_bytes(await file.read())
+        file_content = read_file_content(temp_path)
+        processed_files[file.filename] = file_content
+        return FileContentResponse(filename=file.filename, file_content=file_content, additional_text=additional_text)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing the file: {str(e)}")
+    finally:
+        if temp_path.exists():
+            temp_path.unlink()
 
-@app.get(
-    "/files/content/{filename}",
-    response_model=FileContentResponse,
-    summary="Get file content",
-    description="Returns the content of a previously processed file.",
-)
+@app.get("/files/text/{filename}", 
+         response_model=FileContentResponse, 
+         summary="Retrieve extracted file text", 
+         description="Returns the plain text content of a previously uploaded file.")
 async def get_file_content(filename: str):
-    """
-    Retrieves the content of a file that has already been processed.
-    """
     if filename in processed_files:
-        return FileContentResponse(
-            filename=filename,
-            file_content=processed_files[filename],
-            additional_text=None,
-        )
-    else:
-        raise HTTPException(status_code=404, detail="File not found.")
+        return FileContentResponse(filename=filename, file_content=processed_files[filename])
+    raise HTTPException(status_code=404, detail="File not found.")
 
-@app.get(
-    "/files/list",
-    summary="List processed files",
-    description="Returns a list of the names of files that have been uploaded and processed.",
-)
+@app.get("/files/list", 
+         summary="List uploaded files", 
+         description="Returns the names of files that have been uploaded and processed.")
 async def list_files():
-    """
-    Returns a list of processed files. If there are no files, a response with no files is provided.
-    """
-    if not processed_files:
-        return {"message": "No files have been processed.", "files": []}
-    return {"files": list(processed_files.keys())}
+    return {"files": list(processed_files.keys())} if processed_files else {"message": "No files have been processed.", "files": []}
 
-# Execution
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=7121)

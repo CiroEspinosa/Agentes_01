@@ -1,6 +1,0 @@
-identifier: circus_swarm
-swarm_type: hybrid
-agents:
-  - joker_agent
-  - explainer_agent
-  - circus_user_proxy

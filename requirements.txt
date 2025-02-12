@@ -24,6 +24,10 @@ python-pptx
 pandas
 openpyxl
 xhtml2pdf
+odfpy
+EbookLib
+beautifulsoup4
+pdfplumber
 # testing
 pytest>=8.3.2
 pylint>=3.2.6
