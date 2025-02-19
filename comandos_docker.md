@@ -63,3 +63,12 @@ curl -X 'POST' 'http://127.0.0.1:7121/files/upload/' \
   -H 'Content-Type: multipart/form-data' \
   -F 'file=@/home/ciro/Project/TARJETA RESTAURANTE.pdf'
 "\\wsl.localhost\Ubuntu\home\ciro\Project\TARJETA RESTAURANTE.pdf"
+
+curl -X POST "http://localhost:7122/files/fill/a.pdf"      
+  -H "Content-Type: application/json"      
+  -d '{
+           "data": {
+             "{{Nombre}}": "John Doe",
+             "{{Apellidos}}": "2025-02-14"
+           }
+      }'

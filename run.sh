@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# echo "Deteniendo contenedores..."
-# docker compose down
+ echo "Deteniendo contenedores..."
+docker compose down
 
-# echo "Eliminando imágenes antiguas..."
-# docker compose rm -f
+ echo "Eliminando imágenes antiguas..."
+ docker compose rm -f
 
 echo "Construyendo contenedores..."
 docker compose build

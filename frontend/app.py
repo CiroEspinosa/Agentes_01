@@ -107,7 +107,10 @@ with st.sidebar:
                 if file_list:
                     st.write("Archivos disponibles:")
                     for file in file_list:
-                        st.write(f"- {file}")
+                        filename = file.get("filename", "Desconocido")
+                        download_url = file.get("download_url", "#")
+                        # Mostrar el nombre del archivo con un enlace de descarga
+                        st.markdown(f"- [{filename}]({download_url})")
                 else:
                     st.info("No hay archivos disponibles.")
             else:

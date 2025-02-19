@@ -18,7 +18,6 @@ typing==3.7.4.3
 #utils==1.0.2 # TODO: Conflict with utils from coreagents
 uvicorn>=0.30.3
 streamlit
-PyPDF2
 python-docx
 python-pptx
 pandas
@@ -28,6 +27,7 @@ odfpy
 EbookLib
 beautifulsoup4
 pdfplumber
+pdf2docx
 # testing
 pytest>=8.3.2
 pylint>=3.2.6

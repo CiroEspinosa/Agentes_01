@@ -3,21 +3,18 @@ from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from typing import Optional, Dict
 from pathlib import Path
 from pydantic import BaseModel
-from PyPDF2 import PdfReader
+from fastapi.responses import FileResponse
 from docx import Document
 from pptx import Presentation
-from odf.opendocument import load
-from ebooklib import epub
 from bs4 import BeautifulSoup
 import pandas as pd
 import pdfplumber
 from pathlib import Path
 
-
 app = FastAPI()
 
-processed_files: Dict[str, str] = {}
-structured_files: Dict[str, str] = {}
+FILES_FOLDER = Path("/storage/")
+FILES_FOLDER.mkdir(parents=True, exist_ok=True) 
 
 class FileContentResponse(BaseModel):
     """Response model for extracted file text."""
@@ -25,8 +22,8 @@ class FileContentResponse(BaseModel):
     file_content: str
     additional_text: Optional[str] = None
 
-def read_file_content(file_path: Path) -> str:
-    """Extracts the plain text content from a file."""
+def read_file_text(file_path: Path) -> str:
+    """Extracts the plain text Text from a file."""
     file_extension = file_path.suffix.lower()
     try:
         if file_extension == ".txt":
@@ -50,35 +47,52 @@ def read_file_content(file_path: Path) -> str:
 
 @app.post("/files/upload/", 
           response_model=FileContentResponse, 
-          summary="Upload and extract file text", 
-          description="Uploads a file and extracts its plain text content.")
+          summary="Upload and extract file content", 
+          description="Uploads a file and extracts its text.")
 async def upload_file(file: UploadFile = File(...), additional_text: Optional[str] = Form(None)):
-    temp_path = Path(f"/tmp/{file.filename}")
+    file_path = FILES_FOLDER / file.filename 
     try:
-        temp_path.write_bytes(await file.read())
-        file_content = read_file_content(temp_path)
-        processed_files[file.filename] = file_content
-        return FileContentResponse(filename=file.filename, file_content=file_content, additional_text=additional_text)
+        with open(file_path, "wb") as f:
+            f.write(await file.read())
+        file_text = read_file_text(file_path)
+        return FileContentResponse(filename=file.filename, file_content=file_text, additional_text=additional_text)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing the file: {str(e)}")
-    finally:
-        if temp_path.exists():
-            temp_path.unlink()
+
+@app.get("/files/download/{filename}", 
+         response_class=FileResponse, 
+         summary="Download a file", 
+         description="Retrieves a file stored in /storage/")
+async def get_file(filename: str):
+    file_path = FILES_FOLDER / filename
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileResponse(file_path, filename=filename)
+
+@app.get("/files/list",
+    summary="List generated documents",
+    description="Lists all the generated documents available for download.")
+async def list_files():
+    files = [
+        {
+            "filename": file.name,
+            "download_url": f"/files/download/{file.name}"
+        }
+        for file in FILES_FOLDER.iterdir() if file.is_file()
+    ]
+    return {"files": files} if files else {"message": "No files stored.", "files": []}
 
 @app.get("/files/text/{filename}", 
          response_model=FileContentResponse, 
          summary="Retrieve extracted file text", 
-         description="Returns the plain text content of a previously uploaded file.")
-async def get_file_content(filename: str):
-    if filename in processed_files:
-        return FileContentResponse(filename=filename, file_content=processed_files[filename])
+         description="Returns the plain text of a previously uploaded file.")
+async def get_file_text(filename: str):
+    file_path = FILES_FOLDER / filename
+    if file_path.exists() and file_path.is_file():
+        file_text = read_file_text(file_path)
+        return FileContentResponse(filename=filename, file_content=file_text)
+    
     raise HTTPException(status_code=404, detail="File not found.")
-
-@app.get("/files/list", 
-         summary="List uploaded files", 
-         description="Returns the names of files that have been uploaded and processed.")
-async def list_files():
-    return {"files": list(processed_files.keys())} if processed_files else {"message": "No files have been processed.", "files": []}
-
+ 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=7121)

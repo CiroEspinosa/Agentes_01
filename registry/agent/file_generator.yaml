@@ -7,7 +7,7 @@ tools:
 rag_enabled: False
 agent_description: Responsible for generating and downloading files.
 goals:
-  Use the tool provided to generate or download files according to file_assistant instructions. 
+  Use the tool provided to list, generate, fill and download files according to file_assistant instructions. 
   Send the information to file_assistant. 
-  After one try, if there is any problems, tell file_assistant.
+  After one try, if there is any problems, inform file_assistant.
 

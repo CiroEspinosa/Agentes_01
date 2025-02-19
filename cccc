@@ -1,0 +1,409 @@
+import uvicorn
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
+from pydantic import BaseModel
+import pandas as pd
+from pathlib import Path
+import uuid
+from typing import List, Dict, Optional, Union
+from xhtml2pdf import pisa
+from io import BytesIO
+from docx import Document
+import requests
+
+app = FastAPI()
+
+# Carpeta para almacenar documentos generados
+
+FILES_FOLDER = Path("/storage/")
+FILES_FOLDER.mkdir(parents=True, exist_ok=True) 
+
+class FileContentResponse(BaseModel):
+    """Response model for extracted file text."""
+    filename: str
+    file_content: str
+    additional_text: Optional[str] = None
+
+class DocumentRequest(BaseModel):
+    content: Union[List[Dict[str, str]], str]
+    filename: Optional[str] = None
+
+class FillRequest(BaseModel):
+    data: dict
+
+def generate_unique_filename(base_name: Optional[str], extension: str) -> Path:
+    """Genera un nombre de archivo único en la carpeta de destino."""
+    filename = base_name if base_name else f"document_{uuid.uuid4().hex[:8]}"
+    return FILES_FOLDER / f"{filename}{extension}"
+
+
+
+def generate_excel(file_path: Path, content: list):
+    """Genera un archivo Excel con los datos proporcionados."""
+    df = pd.DataFrame(content)
+    df.to_excel(file_path, index=False, engine="openpyxl")
+
+def generate_word(file_path: Path, content: list):
+    """Genera un archivo Word con los datos proporcionados."""
+    doc = Document()
+    for row in content:
+        for key, value in row.items():
+            doc.add_paragraph(f"{key}: {value}")
+    doc.save(file_path)
+
+async def generate_document(data, file_extension: str, generator_function):
+    """Genera un documento con el tipo y generador especificados."""
+    if not data.content:
+        raise HTTPException(status_code=400, detail="No se proporcionaron datos")
+    file_path = generate_unique_filename(data.filename, file_extension)
+    generator_function(file_path, data.content)
+    return {"download_url": f"/files/download/{file_path.name}"}
+
+@app.post(
+    "/files/generate/pdf/",
+    summary="Generate a PDF document",
+    description="""Creates a PDF document based on the provided HTML content.
+    Example Request Body (PDF - HTML Format)
+    {
+        "filename": "invoice",
+        "content": "<html><head><style>
+        body { font-family: Arial, sans-serif; }
+        h1 { color: navy; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid black; padding: 5px; text-align: left; }
+        </style></head><body>
+        <h1>Invoice</h1>
+        <p>Client: John Doe</p>
+        <table>
+            <tr><th>Item</th><th>Price</th></tr>
+            <tr><td>Keyboard</td><td>$50</td></tr>
+        </table>
+        </body></html>"
+    }
+    """
+)
+async def generate_pdf_document(data: DocumentRequest):
+    return await generate_document(data, ".pdf", generate_pdf)
+
+def generate_pdf(file_path: Path, content: str):
+    """Genera un archivo PDF basado en contenido HTML proporcionado utilizando xhtml2pdf."""
+    pdf_buffer = BytesIO()
+    pisa_status = pisa.CreatePDF(content, dest=pdf_buffer)
+    if pisa_status.err:
+        raise ValueError("Error al generar el PDF con xhtml2pdf.")
+    file_path.write_bytes(pdf_buffer.getvalue())
+
+@app.post(
+    "/files/generate/excel/",
+    summary="Generate an Excel document",
+    description="""Creates an Excel document based on the provided data.
+    Example Request Body (Excel)
+    {
+        "type": "excel",
+        "filename": "sales_report",
+        "content": [
+            {"Date": "2024-02-12", "Product": "Laptop", "Price": "1200", "Quantity": "2"},
+            {"Date": ... }
+        ]
+    }
+    """
+)
+async def generate_excel_document(data):
+    return await generate_document(data, ".xlsx", generate_excel)
+
+@app.post(
+    "/files/generate/word/",
+    summary="Generate a Word document",
+    description="""Creates a Word document based on the provided data.
+    Example Request Body (Word)
+    {
+        "type": "word",
+        "filename": "report",
+        "content": [
+            {"Title": "Annual Report", "Date": "2024-02-12", "Summary": "This is the report summary."}
+        ]
+    }
+    """
+)
+async def generate_word_document(data):
+    return await generate_document(data, ".docx", generate_word)
+
+@app.get("/files/list",
+    summary="List generated documents",
+    description="Lists all the generated documents available for download.")
+async def list_files():
+    files = [file.name for file in FILES_FOLDER.iterdir() if file.is_file()]
+    return {"files": files} if files else {"message": "No files stored.", "files": []}
+    
+@app.get("/files/text/{filename}", 
+         response_model=FileContentResponse, 
+         summary="Retrieve extracted file text", 
+         description="Returns the plain text content of a previously uploaded file.")
+async def get_file_content(filename: str):
+    file_path = FILES_FOLDER / filename
+    if file_path.exists() and file_path.is_file():
+        try:
+            return {"filename": filename, "file_content": file_path.read_text(encoding="utf-8")}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")
+    raise HTTPException(status_code=404, detail="File not found.")
+
+@app.post(
+    "/files/fill/{filename}",
+    summary="Fill placeholders in a document",
+    description="""
+    Fills placeholders in a document with the provided data and returns a download link.
+    Supported formats: .docx, .xlsx, .pdf.
+    
+    Example Request Body:
+    {
+        "data": {"{{name}}": "John Doe", "{{date}}": "2025-02-14"}
+    }
+    """
+)
+async def fill_document(filename: str, request: FillRequest):
+    """
+    Rellena un documento con los datos proporcionados y devuelve un enlace de descarga.
+    """
+    file_url = f"http://localhost:7121/files/{filename}"
+    response = requests.get(file_url)
+    if response.status_code != 200:
+        raise HTTPException(status_code=404, detail="No se pudo obtener el archivo")
+    
+    filled_filename = f"filled_{uuid.uuid4().hex[:8]}_{filename}"
+    filled_path = FILES_FOLDER / filled_filename
+    file_path = FILES_FOLDER / filename
+    
+    with open(file_path, "wb") as file:
+        file.write(response.content)
+    
+    try:
+        if filename.endswith(".docx"):
+            fill_word_document(file_path, filled_path, request.data)
+        elif filename.endswith(".xlsx"):
+            fill_excel_document(file_path, filled_path, request.data)
+        elif filename.endswith(".pdf"):
+            fill_pdf_document(file_path, filled_path, request.data)
+        else:
+            raise HTTPException(status_code=400, detail="Formato de archivo no soportado")
+        
+        return {"download_url": f"/files/download/{filled_filename}"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+def fill_word_document(source: Path, destination: Path, data: dict):
+    doc = Document(source)
+    for para in doc.paragraphs:
+        for key, value in data.items():
+            if key in para.text:
+                para.text = para.text.replace(key, value)
+    doc.save(destination)
+
+def fill_excel_document(source: Path, destination: Path, data: dict):
+    df = pd.read_excel(source, engine='openpyxl')
+    df.replace(data, inplace=True)
+    df.to_excel(destination, index=False, engine='openpyxl')
+
+def fill_pdf_document(source: Path, destination: Path, data: dict):
+    with open(source, "r", encoding="utf-8") as file:
+        content = file.read()
+    
+    for key, value in data.items():
+        content = content.replace(key, value)
+    
+    pdf_buffer = BytesIO()
+    pisa.CreatePDF(content, dest=pdf_buffer)
+    with open(destination, "wb") as pdf_file:
+        pdf_file.write(pdf_buffer.getvalue())
+
+@app.get(
+    "/files/download/{filename}",
+    summary="Download a file",
+    description="Allows downloading a document by specifying its filename."
+)
+async def download_file(filename: str):
+    """Permite descargar un documento generado."""
+    file_path = Path(FILES_FOLDER) / filename  
+    if not file_path.is_file():  
+        raise HTTPException(status_code=404, detail="Not Found")
+
+    return FileResponse(file_path, filename=filename, headers={"Content-Disposition": "attachment"})
+
+
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=7122)
+
+import uvicorn
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
+from pydantic import BaseModel
+import pandas as pd
+import os
+import uuid
+from typing import List, Dict, Optional, Union
+from xhtml2pdf import pisa
+from io import BytesIO
+
+app = FastAPI()
+
+# Carpeta para almacenar documentos generados
+OUTPUT_FOLDER = "generated_files"
+os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+
+class FileContentResponse(BaseModel):
+    """Response model for extracted file text."""
+    filename: str
+    file_content: str
+    additional_text: Optional[str] = None
+
+class DocumentRequest(BaseModel):
+    type: str  # "excel" o "pdf"
+    content: Union[List[Dict[str, str]], str]
+    filename: Optional[str] = None
+    
+    
+@app.post(
+    "/files/generate/",
+    summary="Generate a document (Excel or PDF)",
+    description="""Creates a document (Excel or PDF) based on the provided data.
+    Example Request Body (Excel)
+    {
+        "type": "excel",
+        "filename": "sales_report",
+        "content": [
+            {"Date": "2024-02-12", "Product": "Laptop", "Price": "1200", "Quantity": "2"},
+            {"Date": ... }
+        ]
+    }
+    Example Request Body (PDF - HTML Format)
+    {
+        "type": "pdf",
+        "filename": "invoice",
+        "content": "<html><head><style>
+        body { font-family: Arial, sans-serif; }
+        h1 { color: navy; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid black; padding: 5px; text-align: left; }
+        </style></head>
+        <body>
+        <h1>Invoice</h1>
+        <p>Client: John Doe</p>
+        <table>
+            <tr><th>Item</th><th>Price</th></tr>
+            <tr><td>Keyboard</td><td>$50</td></tr>
+        </table>
+        </body></html>"
+    }
+    """
+)
+
+async def generate_document(data: DocumentRequest):
+    """Genera un documento Excel o PDF con los datos proporcionados."""
+    try:
+        if not data.content:
+            raise HTTPException(status_code=400, detail="No se proporcionaron datos")
+
+        # Si no se proporciona un nombre de archivo, generar uno único
+        filename = data.filename if data.filename else f"document_{str(uuid.uuid4())[:8]}"
+        file_path = os.path.join(OUTPUT_FOLDER, filename)
+
+        # Crear el archivo en el formato deseado
+        if data.type == "excel":
+            if not isinstance(data.content, list):  # Validar que sea una lista
+                raise HTTPException(status_code=400, detail="El contenido de Excel debe ser una lista de diccionarios.")
+            file_path += ".xlsx"
+            generate_excel(file_path, data.content)
+
+        elif data.type == "pdf":
+            if not isinstance(data.content, str):  # Validar que sea un string
+                raise HTTPException(status_code=400, detail="El contenido de PDF debe ser un string HTML válido.")
+            file_path += ".pdf"
+            generate_pdf(file_path, data.content)
+
+        else:
+            raise HTTPException(status_code=400, detail="Formato no soportado")
+
+        return {"download_url": f"/files/download/{os.path.basename(file_path)}"}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+def generate_excel(filename, content):
+    """Genera un archivo Excel con los datos proporcionados."""
+    df = pd.DataFrame(content)
+    df.to_excel(filename, index=False, engine="openpyxl")
+
+def generate_pdf(filename, content):
+    """Genera un archivo PDF basado en contenido HTML proporcionado utilizando xhtml2pdf."""
+    if not isinstance(content, str):
+        raise ValueError("El contenido debe ser una cadena HTML válida.")
+    
+    # Convertir el HTML a PDF usando xhtml2pdf
+    pdf_buffer = BytesIO()
+    pisa_status = pisa.CreatePDF(content, dest=pdf_buffer)
+
+    if pisa_status.err:
+        raise ValueError("Hubo un error al generar el PDF con xhtml2pdf.")
+
+    # Escribir el PDF generado en un archivo
+    with open(filename, "wb") as pdf_file:
+        pdf_file.write(pdf_buffer.getvalue())
+
+@app.get(
+    "/files/list",
+    summary="List generated documents",
+    description="Lists all the generated documents available for download."
+)
+async def list_generated_files():
+    """Lista los archivos generados en la carpeta `OUTPUT_FOLDER`."""
+    try:
+        # Obtener la lista de archivos en el directorio
+        files = os.listdir(OUTPUT_FOLDER)
+
+        # Filtrar solo los archivos (ignorando directorios)
+        files = [f for f in files if os.path.isfile(os.path.join(OUTPUT_FOLDER, f))]
+
+        # Crear una lista con las URL de descarga
+        files_info = [{"filename": f, "download_url": f"/files/download/{f}"} for f in files]
+
+        return {"files": files_info}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@app.get("/files/text/{filename}", 
+         response_model=FileContentResponse, 
+         summary="Retrieve extracted file text", 
+         description="Returns the plain text content of a previously uploaded file.")
+async def get_file_content(filename: str):
+    file_path = os.path.join(OUTPUT_FOLDER, filename)
+
+    if os.path.exists(file_path) and os.path.isfile(file_path):
+        try:
+            with open(file_path, "r", encoding="utf-8") as file:
+                content = file.read()
+            return FileContentResponse(filename=filename, file_content=content)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")
+    
+    raise HTTPException(status_code=404, detail="File not found.")
+
+@app.get(
+    "/files/download/{filename}",
+    summary="Download a generated document",
+    description="Allows downloading a previously generated document by specifying its filename."
+)
+async def download_file(filename: str):
+    """Permite descargar un documento generado."""
+    file_path = os.path.join(OUTPUT_FOLDER, filename)
+
+    if not os.path.isfile(file_path):
+        raise HTTPException(status_code=404, detail="Archivo no encontrado")
+
+    return FileResponse(file_path, filename=os.path.basename(filename), headers={"Content-Disposition": "attachment"})
+
+
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=7122)

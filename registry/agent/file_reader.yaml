@@ -7,5 +7,5 @@ tools:
 rag_enabled: False
 agent_description: Responsible for retrieving the list of stored files or the content of stored files.
 goals:
-  Use the provided tool to retrieve the list of stored files or their content (text or html), then send the information to file_assistant.
-  If the list is empty or an error occurs, inform file_assistant immediately, explaining what happened.
+  Use the provided tool to retrieve the list of stored files or their content, then send the information to file_assistant.
+  If the list is empty or an error occurs, stop and inform file_assistant immediately, explaining what happened.
