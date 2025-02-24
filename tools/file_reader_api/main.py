@@ -1,6 +1,6 @@
 import uvicorn
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
-from typing import Optional, Dict
+from typing import Optional
 from pathlib import Path
 from pydantic import BaseModel
 from fastapi.responses import FileResponse
@@ -9,12 +9,11 @@ from pptx import Presentation
 from bs4 import BeautifulSoup
 import pandas as pd
 import pdfplumber
-from pathlib import Path
 
 app = FastAPI()
 
-FILES_FOLDER = Path("/storage/")
-FILES_FOLDER.mkdir(parents=True, exist_ok=True) 
+# Actualizamos la carpeta donde se almacenan los archivos a la ruta del volumen compartido
+FILES_FOLDER = Path("/app/shared_files/")
 
 class FileContentResponse(BaseModel):
     """Response model for extracted file text."""
@@ -23,7 +22,7 @@ class FileContentResponse(BaseModel):
     additional_text: Optional[str] = None
 
 def read_file_text(file_path: Path) -> str:
-    """Extracts the plain text Text from a file."""
+    """Extracts the plain text from a file."""
     file_extension = file_path.suffix.lower()
     try:
         if file_extension == ".txt":
@@ -59,15 +58,40 @@ async def upload_file(file: UploadFile = File(...), additional_text: Optional[st
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing the file: {str(e)}")
 
-@app.get("/files/download/{filename}", 
-         response_class=FileResponse, 
-         summary="Download a file", 
-         description="Retrieves a file stored in /storage/")
-async def get_file(filename: str):
-    file_path = FILES_FOLDER / filename
-    if not file_path.exists():
+
+@app.get(
+    "/files/download/{filename}",
+    response_class=FileResponse,
+    summary="Download a file",
+    description="Allows downloading a document by specifying its filename."
+)
+async def download_file(filename: str):
+    """Allows downloading a document generated."""
+    file_path = FILES_FOLDER / filename  
+    if not file_path.is_file():
         raise HTTPException(status_code=404, detail="File not found")
-    return FileResponse(file_path, filename=filename)
+    return FileResponse(file_path, filename=filename, headers={"Content-Disposition": "attachment"})
+
+
+
+
+@app.delete(
+    "/files/delete/{filename}",
+    summary="Delete a file",
+    description="Deletes a file from the server."
+)
+async def delete_file(filename: str):
+    """Deletes a document by specifying its filename."""
+    file_path = FILES_FOLDER / filename  
+
+    if not file_path.is_file():
+        raise HTTPException(status_code=404, detail="File not found")
+
+    try:
+        file_path.unlink()  # Usando pathlib para eliminar el archivo
+        return {"message": f"File '{filename}' deleted successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting file: {str(e)}")
 
 @app.get("/files/list",
     summary="List generated documents",
@@ -76,7 +100,7 @@ async def list_files():
     files = [
         {
             "filename": file.name,
-            "download_url": f"/files/download/{file.name}"
+            "download_url": f"http://localhost:7121/files/download/{file.name}"
         }
         for file in FILES_FOLDER.iterdir() if file.is_file()
     ]
@@ -92,7 +116,7 @@ async def get_file_text(filename: str):
         file_text = read_file_text(file_path)
         return FileContentResponse(filename=filename, file_content=file_text)
     
-    raise HTTPException(status_code=404, detail="File not found.")
- 
+    raise HTTPException(status_code=404, detail="File not found.") 
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=7121)

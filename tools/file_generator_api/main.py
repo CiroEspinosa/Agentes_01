@@ -1,6 +1,6 @@
 import uvicorn
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, HTTPException, Form
+from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel
 import pandas as pd
 from pathlib import Path
@@ -15,7 +15,7 @@ import traceback
 from pdf2docx import Converter
 import fitz
 import pandas as pd
-from openpyxl import load_workbook
+import json
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -24,8 +24,7 @@ app = FastAPI()
 
 # Carpeta para almacenar documentos generados
 
-FILES_FOLDER = Path("/storage/")
-FILES_FOLDER.mkdir(parents=True, exist_ok=True) 
+FILES_FOLDER = Path("/app/shared_files/")
 
 class FileContentResponse(BaseModel):
     """Response model for extracted file text."""
@@ -34,10 +33,12 @@ class FileContentResponse(BaseModel):
     additional_text: Optional[str] = None
 
 class DocumentRequest(BaseModel):
-    content: Union[List[Dict[str, str]], str]
     filename: Optional[str] = None
-
-
+    content: Union[List[Dict[str, str]], str]
+    
+class PDFEditRequest(BaseModel):
+    filename: str  # El nombre del archivo es obligatorio
+    data: Dict[str, str]  # Diccionario con los campos a modificar
 
 def generate_unique_filename(base_name: Optional[str], extension: str) -> Path:
     """Genera un nombre de archivo único en la carpeta de destino."""
@@ -189,7 +190,7 @@ async def generate_document(data, file_extension: str, generator_function):
         logger.error(traceback.format_exc())  # Capturar traceback completo
         raise HTTPException(status_code=500, detail=f"Error generating Word document: {str(e)}")
 
-    return {"download_url": f"/files/download/{file_path.name}"}
+    return {"download_url": f"http://localhost:7121//files/download/{file_path.name}"}
 
 
 
@@ -213,143 +214,105 @@ def generate_word(file_path: Path, html_content: str):
         logger.error(traceback.format_exc())  # Capturar detalles del error
         raise HTTPException(status_code=500, detail=f"Error generating Word document: {str(e)}")
 
-@app.get("/files/list",
-    summary="List generated documents",
-    description="Lists all the generated documents available for download.")
-async def list_files():
-    files = [
-        {
-            "filename": file.name,
-            "download_url": f"/files/download/{file.name}"
-        }
-        for file in FILES_FOLDER.iterdir() if file.is_file()
-    ]
-    return {"files": files} if files else {"message": "No files stored.", "files": []}
 
-@app.get("/files/text/{filename}", 
-         response_model=FileContentResponse, 
-         summary="Retrieve extracted file text", 
-         description="Returns the plain text content of a previously uploaded file.")
-async def get_file_content(filename: str):
-    file_path = FILES_FOLDER / filename
-    if file_path.exists() and file_path.is_file():
-        try:
-            return {"filename": filename, "file_content": file_path.read_text(encoding="utf-8")}
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")
-    raise HTTPException(status_code=404, detail="File not found.")
 
-class FillRequest(BaseModel):
-    data: Dict[str, str]
 
-@app.post(
-    "/files/fill/{filename}",
-    summary="Fill placeholders in a document",
-    description="""
-    Fills placeholders in a document with the provided data and returns a download link.
-    Supported formats: .docx, .xlsx, .pdf.
-    
-    Example Request Body:
-    {
-        "data": {"{{name}}": "John Doe", "{{date}}": "2025-02-14"}
-    }
+@app.get("/pdf/fields/{filename}", summary="Obtener los campos rellenables de un PDF")
+async def get_pdf_fields(filename: str) -> Dict[str, str]:
     """
-)
-async def fill_document(filename: str, request: FillRequest):
-    """Rellena un documento con los datos proporcionados y devuelve un enlace de descarga."""
-
+    Recibe el nombre de un PDF ya almacenado y devuelve los nombres de los campos de formulario que pueden ser editados.
+    """
     file_path = FILES_FOLDER / filename
-    filled_filename = f"filled_{uuid.uuid4().hex[:8]}_{filename}"
-    filled_path = FILES_FOLDER / filled_filename
 
-    # Intentar descargar el archivo desde múltiples servidores
-    for server_port in [7121, 7122]:
-        file_url = f"http://localhost:{server_port}/files/download/{filename}"
-        try:
-            response = requests.get(file_url, timeout=5)
-            if response.status_code == 200:
-                with open(file_path, "wb") as file:
-                    file.write(response.content)
-                break
-        except requests.RequestException:
-            continue
-    else:
-        raise HTTPException(status_code=404, detail="No se pudo obtener el archivo")
+    # Verificar si el archivo existe
+    if not file_path.is_file():
+        raise HTTPException(status_code=404, detail="Archivo no encontrado")
 
-    # Determinar el tipo de archivo y aplicar el procesamiento adecuado
-    extension = file_path.suffix.lower()
     try:
-        if extension == ".docx":
-            fill_word_document(file_path, filled_path, request.data)
-        elif extension == ".xlsx":
-            fill_excel_document(file_path, filled_path, request.data)
-        elif extension == ".pdf":
-            fill_pdf_document(file_path, filled_path, request.data)
-        else:
-            raise HTTPException(status_code=400, detail="Formato de archivo no soportado")
+        # Abrir el PDF con PyMuPDF (fitz)
+        doc = fitz.open(str(file_path))
+        fields = {}
 
-        return {"download_url": f"/files/download/{filled_filename}"}
+        # Obtener los campos del formulario
+        for page in doc:
+            for widget in page.widgets():  # Extraer los elementos de formulario
+                if widget.field_name:
+                    fields[widget.field_name] = ""
+
+        return JSONResponse(content={"fields": fields})
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al procesar el archivo: {str(e)}")
+        logging.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Error al procesar el PDF: {str(e)}")
+    
+@app.post(
+    "/pdf/edit/",
+    summary="Edit form fields in a PDF and save it",
+    description="""
+    This endpoint allows the user to edit the form fields of a specified PDF by providing the field names and their corresponding values.
 
-# --- Rellenar un documento Word ---
-def fill_word_document(source: Path, destination: Path, data: dict):
-    """Rellena los placeholders en un documento Word sin perder formato."""
-    try:
-        doc = Document(source)
-        for para in doc.paragraphs:
-            for run in para.runs:
-                for key, value in data.items():
-                    if key in run.text:
-                        run.text = run.text.replace(key, value)
-        doc.save(destination)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error en Word: {str(e)}")
-
-# --- Rellenar un archivo Excel ---
-def fill_excel_document(source: Path, destination: Path, data: dict):
-    """Rellena los placeholders en un archivo Excel sin perder formato."""
-    try:
-        wb = load_workbook(source)
-        ws = wb.active
-        for row in ws.iter_rows():
-            for cell in row:
-                if cell.value and isinstance(cell.value, str):
-                    for key, value in data.items():
-                        cell.value = cell.value.replace(key, value)
-        wb.save(destination)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error en Excel: {str(e)}")
-
-# --- Rellenar un archivo PDF ---
-def fill_pdf_document(source: Path, destination: Path, data: dict):
-    """Rellena los placeholders en un archivo PDF."""
-    try:
-        pdf = fitz.open(source)
-        for page in pdf:
-            text = page.get_text("text")
-            for key, value in data.items():
-                text = text.replace(key, value)
-            page.insert_text((50, 50), text, fontsize=12)
-
-        pdf.save(destination)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error en PDF: {str(e)}")
-
-@app.get(
-    "/files/download/{filename}",
-    summary="Download a file",
-    description="Allows downloading a document by specifying its filename."
+    **Example Request:**
+    ```json
+    {
+        "filename": "form.pdf",
+        "data": {
+            "name": "John Doe",
+            "date": "2025-02-21",
+            "signature": "Approved"
+        }
+    }
+    ```
+    """,
 )
-async def download_file(filename: str):
-    """Permite descargar un documento generado."""
-    file_path = Path(FILES_FOLDER) / filename  
-    if not file_path.is_file():  
-        raise HTTPException(status_code=404, detail="Not Found")
+async def edit_pdf(request: PDFEditRequest):
+    """
+    Receives the name of a PDF and a dictionary with the values to modify in the form fields.
+    Returns the edited PDF.
+    """
+    filename = request.filename
+    data = request.data
+    file_path = FILES_FOLDER / filename
+    output_path = FILES_FOLDER / f"edited_{filename}"
 
-    return FileResponse(file_path, filename=filename, headers={"Content-Disposition": "attachment"})
+    if not file_path.is_file():
+        logging.error(f"File not found: {file_path}")
+        raise HTTPException(status_code=404, detail="File not found")
 
+    try:
+        doc = fitz.open(str(file_path))
+        total_fields = 0
+        updated_fields = 0
+
+        for page in doc:
+            widgets = page.widgets() or page.annots()  # Intentar con annots() si widgets() está vacío
+
+            if not widgets:
+                logging.warning(f"No form fields found on page {page.number}")
+
+            for widget in widgets:
+                total_fields += 1
+                logging.debug(f"Found field: {widget.field_name}, value before: {widget.get_text}")
+
+                if widget.field_name and widget.field_name in data:
+                    widget.text = data[widget.field_name]  # Modificar el texto del campo
+                    widget.update()  # Aplicar el cambio
+                    updated_fields += 1
+                    logging.info(f"Updated field: {widget.field_name}, new value: {widget.get_text}")
+
+        if updated_fields == 0:
+            logging.warning("No fields were updated. Check if the field names match.")
+
+        doc.save(str(output_path), incremental=False)  # Guardar cambios
+        doc.close()
+
+        logging.info(f"PDF edited successfully: {output_path}")
+        return {"message": "PDF edited and saved", "edited_filename": f"edited_{filename}"}
+
+    except Exception as e:
+        logging.error(f"Error modifying the PDF: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error modifying the PDF: {str(e)}")
+
+    
 
 
 if __name__ == "__main__":

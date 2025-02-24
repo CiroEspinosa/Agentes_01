@@ -89,6 +89,8 @@ services:
       - "7121:7121"                    
     depends_on:
       - registry-tool     
+    volumes:
+      - shared_files:/app/shared_files 
 
   tool_file_generator:
     build:
@@ -98,7 +100,9 @@ services:
     ports:
       - "7122:7122"                    
     depends_on:
-      - registry-tool               
+      - registry-tool 
+    volumes:
+      - shared_files:/app/shared_files               
 
   ########################################################################
   #
@@ -149,6 +153,8 @@ services:
       PINECONE_API_KEY: ${PINECONE_API_KEY}
       PINECONE_REGION: ${PINECONE_REGION}
       PINECONE_INDEX_NAME: ${PINECONE_INDEX_NAME}
+    volumes:
+      - shared_files:/app/shared_files 
  
   file_assistant:
     build:
@@ -238,3 +244,7 @@ services:
       - file_user_proxy
     environment:
       - API_BASE_URL=http://clothes_user_proxy:10002
+
+volumes:
+  shared_files:
+    driver: local
