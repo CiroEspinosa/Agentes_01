@@ -100,7 +100,6 @@ async def list_files():
     files = [
         {
             "filename": file.name,
-            "download_url": f"http://localhost:7121/files/download/{file.name}"
         }
         for file in FILES_FOLDER.iterdir() if file.is_file()
     ]

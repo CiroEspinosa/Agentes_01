@@ -1,12 +1,14 @@
 import streamlit as st
 import requests
 import time
+import urllib.parse
 import os
 
 # URL del endpoint donde se enviará el archivo
 UPLOAD_URL = "http://tool_file_reader:7121/files/upload/"
 LIST_URL = "http://tool_file_reader:7121/files/list"
-
+DELETE_URL = "http://tool_file_reader:7121/files/delete"
+DOWNLOAD_URL = "http://localhost:7121/files/download"
 
 
 data = {
@@ -53,57 +55,70 @@ if "chat_history" not in st.session_state:
 if "respuesta_completada" not in st.session_state:
     st.session_state.respuesta_completada = False
 
-st.set_page_config(layout="wide")
+# Inicializar session_state si no existe
+if "file_list" not in st.session_state:
+    try:
+        response = requests.get(LIST_URL)
+        if response.status_code == 200:
+            st.session_state.file_list = response.json().get("files", [])
+        else:
+            st.session_state.file_list = []
+    except requests.exceptions.RequestException:
+        st.session_state.file_list = []
 
-# Sidebar para subir archivos y mostrar información relevante
+# Sidebar para subir archivos
 with st.sidebar:
     st.title("Opciones")
     st.subheader("Subir archivo")
     uploaded_file = st.file_uploader("Elige un archivo")
 
-    
     if uploaded_file is not None:
         st.write(f"Archivo seleccionado: {uploaded_file.name}")
         if st.button("Subir archivo"):
             files = {"file": (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)}
-            headers = {"Content-Type": "multipart/form-data"}
             try:
                 response = requests.post(UPLOAD_URL, files=files)
                 if response.status_code == 200:
                     st.success("Archivo subido con éxito.")
+                    # Actualizar lista de archivos después de subir
+                    response = requests.get(LIST_URL)
+                    if response.status_code == 200:
+                        st.session_state.file_list = response.json().get("files", [])
+                    st.rerun()
                 else:
                     st.error(f"Error al subir el archivo: {response.status_code} - {response.text}")
             except requests.exceptions.RequestException as e:
                 st.error(f"Error de conexión: {e}")
-    
-    st.subheader("Archivos")          
 
-    if st.button("Actualizar lista de archivos"):
-        try:
-            response = requests.get(LIST_URL)
-            if response.status_code == 200:
-                file_list = response.json().get("files", [])  # Extraer la lista de archivos
-                if file_list:
-                    st.write("Archivos disponibles:")
-                    for file in file_list:
-                        filename = file.get("filename", "Desconocido")
-                        download_url = file.get("download_url", "#")
-                        # Mostrar el nombre del archivo con un enlace de descarga
-                        st.markdown(f"- [{filename}]({download_url})")
-                else:
-                    st.info("No hay archivos disponibles.")
-            else:
-                st.error(f"Error al obtener la lista de archivos: {response.status_code} - {response.text}")
-        except requests.exceptions.RequestException as e:
-            st.error(f"Error de conexión: {e}")
+    # Mostrar archivos disponibles
+    st.subheader("Archivos disponibles")
+    if st.session_state.file_list:
+        for file in st.session_state.file_list:
+            filename = file.get("filename", "Desconocido")
+            encoded_filename = urllib.parse.quote(filename)
+
+            col1, col2 = st.columns([5, 1])
+            with col1:
+                st.markdown(f"[{filename}]({DOWNLOAD_URL}/{encoded_filename})", unsafe_allow_html=True)
+            with col2:
+                if st.button("🗑️", key=f"delete_{filename}"):
+                    delete_response = requests.delete(f"{DELETE_URL}/{encoded_filename}")
+                    
+                    # Actualizar lista de archivos después de borrar
+                    response = requests.get(LIST_URL)
+                    if response.status_code == 200:
+                        st.session_state.file_list = response.json().get("files", [])
+                        st.rerun()
+
+    # Mostrar mensaje si no hay archivos disponibles
+    if not st.session_state.file_list:
+        st.info("No hay archivos disponibles.")
 
     st.subheader("Información de Herramientas, Agentes y Swarms")
-
-    # Mostrar datos en expansores para ahorrar espacio
     for category, items in data.items():
-        with st.expander(category):
-            for item in items:
-                st.write(f"**{item['Nombre']}**: Puerto `{item['Puerto']}`")
+            with st.expander(category):
+                for item in items:
+                    st.write(f"**{item['Nombre']}**: Puerto `{item['Puerto']}`")
 
 ###############################################################################
 #                       Funciones auxiliares del backend                      #
