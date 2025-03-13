@@ -9,6 +9,8 @@ from pptx import Presentation
 from bs4 import BeautifulSoup
 import pandas as pd
 import pdfplumber
+import subprocess
+from xhtml2pdf import pisa
 
 app = FastAPI()
 
@@ -74,6 +76,40 @@ async def download_file(filename: str):
 
 
 
+
+@app.post("/files/test/")
+async def pdf2html_and_html2pdf(file: UploadFile = File(...)):
+    """Recibe un PDF, extrae su diseño como HTML y lo reconstruye en un nuevo PDF."""
+    
+    # Definir rutas de archivos
+    pdf_path = FILES_FOLDER / file.filename
+    html_path = FILES_FOLDER / f"{file.filename}.html"
+    pdf_output_path = FILES_FOLDER / f"reconstructed_{file.filename}"
+
+    # Guardar el archivo PDF subido
+    with open(pdf_path, "wb") as pdf_file:
+        pdf_file.write(await file.read())
+
+    # Convertir PDF a HTML utilizando pdf2htmlEX en Docker
+    subprocess.run([
+        "docker", "run", "--rm", "-v", f"{FILES_FOLDER}:/pdf", "pdf2htmlex/pdf2htmlex",
+        "pdf2htmlEX", "--dest-dir", "/pdf", f"/pdf/{file.filename}"
+    ], check=True)
+
+    # Leer el contenido HTML generado
+    with open(html_path, "r", encoding="utf-8") as html_file:
+        source_html = html_file.read()
+
+    # Convertir HTML a PDF utilizando xhtml2pdf
+    with open(pdf_output_path, "wb") as output_pdf:
+        pisa.CreatePDF(source_html, dest=output_pdf)
+
+    return {
+        "message": "Conversión exitosa",
+        "pdf_url": file.filename,
+        "html_url": html_path.name,
+        "pdf2_url": pdf_output_path.name
+    }
 
 @app.delete(
     "/files/delete/{filename}",

@@ -1,22 +1,23 @@
-# Use an official Python runtime as a parent image
+# Imagen base con Alpine Linux
 FROM python:3.12.4-slim
 
-# Set the working directory in the container
+# Definir el directorio de trabajo
 WORKDIR /app
 
-# Copy the requirements file and install dependencies
+# Copiar y instalar dependencias de Python
 COPY requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the application code into the container
+# Copiar el código de la aplicación
 COPY tools/file_reader_api /app
 COPY coreagents/factory/web_factory.py /app/factory/web_factory.py
 COPY coreagents/utils/logging_config.py /app/utils/logging_config.py
 
-# Set the PYTHONPATH to include /app to ensure all modules are found
+# Setear el PYTHONPATH para asegurar que los módulos se encuentren
 ENV PYTHONPATH=/app
 
-# Expose the production port
+# Exponer el puerto del servicio
 EXPOSE 7121
 
-ENTRYPOINT ["python", "main.py"]
+# Iniciar la aplicación
+ENTRYPOINT ["python3", "main.py"]

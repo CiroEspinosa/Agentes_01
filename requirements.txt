@@ -27,7 +27,12 @@ odfpy
 EbookLib
 beautifulsoup4
 pdfplumber
+WeasyPrint
+pdfminer.six
+pdfkit
 pdf2docx
+xhtml2pdf
+
 # testing
 pytest>=8.3.2
 pylint>=3.2.6

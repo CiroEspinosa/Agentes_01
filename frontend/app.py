@@ -4,12 +4,14 @@ import time
 import urllib.parse
 import os
 
+
 # URL del endpoint donde se enviará el archivo
 UPLOAD_URL = "http://tool_file_reader:7121/files/upload/"
 LIST_URL = "http://tool_file_reader:7121/files/list"
 DELETE_URL = "http://tool_file_reader:7121/files/delete"
 DOWNLOAD_URL = "http://localhost:7121/files/download"
 
+TEST_URL = "http://tool_file_reader:7121/files/test"
 
 data = {
         "Herramientas (Tools)": [
@@ -66,9 +68,50 @@ if "file_list" not in st.session_state:
     except requests.exceptions.RequestException:
         st.session_state.file_list = []
 
+###############################################################################
+#                     Sidebar, lista de archivos, info                        #
+###############################################################################
 # Sidebar para subir archivos
 with st.sidebar:
     st.title("Opciones")
+
+    st.title("Procesar PDF y Extraer HTML")
+
+    uploaded_file = st.file_uploader("📂 Selecciona un archivo PDF", type=["pdf"])
+
+    if uploaded_file is not None:
+        st.write(f"✅ Archivo seleccionado: {uploaded_file.name}")
+        if st.button("🔄 Enviar a servidor para procesar"):
+            files = {"file": (uploaded_file.name, uploaded_file.getvalue(), "application/pdf")}
+
+            try:
+                response = requests.post(TEST_URL, files=files)
+                if response.status_code == 200:
+                    data = response.json()
+
+                    pdf_url = data.get("pdf_url")
+                    html_url = data.get("html_url")
+                    pdf2_url = data.get("pdf2_url")
+
+                    pdf_url_encoded = urllib.parse.quote(pdf_url)
+                    html_url_encoded = urllib.parse.quote(html_url)
+                    pdf2_url_encoded = urllib.parse.quote(pdf2_url)
+
+                    if html_url and pdf2_url:
+                        st.success("✅ Archivo procesado correctamente. Descarga los resultados:")
+                        st.markdown(f"[📥 Descargar PDF]({DOWNLOAD_URL}/{pdf_url_encoded})", unsafe_allow_html=True)
+                        st.markdown(f"[📥 Descargar HTML]({DOWNLOAD_URL}/{html_url_encoded})", unsafe_allow_html=True)
+                        st.markdown(f"[📥 Descargar PDF recompuesto]({DOWNLOAD_URL}/{pdf2_url_encoded})", unsafe_allow_html=True)
+            
+                    else:
+                        st.error("⚠️ No se recibieron URLs de descarga.")
+
+                else:
+                    st.error(f"❌ Error en la respuesta del servidor: {response.status_code} - {response.text}")
+
+            except requests.exceptions.RequestException as e:
+                st.error(f"❌ Error de conexión con el servidor: {e}")
+
     st.subheader("Subir archivo")
     uploaded_file = st.file_uploader("Elige un archivo")
 
@@ -114,6 +157,7 @@ with st.sidebar:
     if not st.session_state.file_list:
         st.info("No hay archivos disponibles.")
 
+    
     st.subheader("Información de Herramientas, Agentes y Swarms")
     for category, items in data.items():
             with st.expander(category):

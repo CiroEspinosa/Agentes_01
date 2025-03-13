@@ -79,18 +79,20 @@ services:
   # TOOLS
   #
   ########################################################################
-    
+
   tool_file_reader:
     build:
       context: .
       dockerfile: tool_file_reader.Dockerfile
     image: tool_file_reader:3.0.3
     ports:
-      - "7121:7121"                    
+      - "7121:7121"
     depends_on:
-      - registry-tool     
+      - registry-tool
     volumes:
-      - shared_files:/app/shared_files 
+      - shared_files:/app/shared_files
+
+
 
   tool_file_generator:
     build:
